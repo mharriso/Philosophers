@@ -2,26 +2,35 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <string.h>
 #include <sys/time.h>
+#include "philo.h"
+
+
+#define FREE 0
+#define LOCK 1
 
 pthread_mutex_t	mutex;
 
 typedef struct s_info
 {
-	size_t			start;
 	int				num_philos;
 	int				time_to_die;
 	int				time_to_eat;
 	int				time_to_sleep;
 	int				num_dinners;
+	int				end;
+	int				finished_philos;
+	int				*fork_status;
+	size_t			start;
 	pthread_mutex_t	*forks;
 }	t_info;
 
 typedef	struct s_philo
 {
 	t_info	*info;
-	int		right_fork;
-	int		left_fork;
+	int		r_fork;
+	int		l_fork;
 	int		num;
 	int		dinners;
 }	t_philo;
@@ -89,14 +98,20 @@ void	print_philo_status(t_philo *philo, char *status)
 }
 
 
+void	philo_eat(t_philo *philo)
+{
+	if(philo->info->fork_status[philo->l_fork] == FREE)
+	{
+		pthread_mutex_lock(&philo->info->forks[philo->l_fork]);
+		pthread_mutex_lock(&philo->info->forks[philo->r_fork]);
+		print_philo_status(philo, "has taken a fork");
+		print_philo_status(philo, "has taken a fork");
+		usleep((philo->info->time_to_eat * 1000));
+	}
+}
 
 void	*philo_life(void *arg)
 {
-	pthread_mutex_lock(&mutex);
-	print_philo_status((t_philo *)arg, "has taken a fork");
-	usleep(((t_philo *)arg)->info->time_to_eat * 1000);
-	pthread_mutex_unlock(&mutex);
-
 	philo_eat((t_philo *)arg);
 	philo_sleep((t_philo *)arg);
 	philo_thinking((t_philo *)arg);
@@ -112,11 +127,11 @@ void	init_philo(t_info *info, t_philo *philo)
 	{
 		philo[i].num = i + 1;
 		philo[i].info = info;
-		philo[i].left_fork = i;
+		philo[i].l_fork = i;
 		if (i == 0)
-			philo[i].right_fork = info->num_philos - 1;
+			philo[i].r_fork = info->num_philos - 1;
 		else
-			philo[i].right_fork = i - 1;
+			philo[i].r_fork = i - 1;
 		philo[i].dinners = 0;
 		i++;
 	}
@@ -136,8 +151,10 @@ int	main (int argc, char **argv)
 	}
 	philo = malloc(info.num_philos * sizeof(t_philo));
 	threads = malloc(info.num_philos * sizeof(pthread_t));
-	info.start = get_useconds();
 	info.forks = malloc(info.num_philos * sizeof(pthread_mutex_t));
+	info.fork_status = malloc(info.num_philos * sizeof(int));
+	memset(info.fork_status, FREE, sizeof(int) * info.num_philos);
+	info.start = get_useconds();
 	init_philo(&info, philo);
 	for (size_t i = 0; i < info.num_philos; i++)
 	{
