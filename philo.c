@@ -8,12 +8,13 @@ pthread_mutex_t	mutex;
 
 typedef struct s_info
 {
-	size_t	start;
-	int		num_philos;
-	int		time_to_die;
-	int		time_to_eat;
-	int		time_to_sleep;
-	int		num_dinners;
+	size_t			start;
+	int				num_philos;
+	int				time_to_die;
+	int				time_to_eat;
+	int				time_to_sleep;
+	int				num_dinners;
+	pthread_mutex_t	*forks;
 }	t_info;
 
 typedef	struct s_philo
@@ -87,12 +88,18 @@ void	print_philo_status(t_philo *philo, char *status)
 	printf("%ld %d %s\n", (get_useconds() - philo->info->start) / 1000, philo->num, status);
 }
 
+
+
 void	*philo_life(void *arg)
 {
 	pthread_mutex_lock(&mutex);
 	print_philo_status((t_philo *)arg, "has taken a fork");
-	usleep(1000);
+	usleep(((t_philo *)arg)->info->time_to_eat * 1000);
 	pthread_mutex_unlock(&mutex);
+
+	philo_eat((t_philo *)arg);
+	philo_sleep((t_philo *)arg);
+	philo_thinking((t_philo *)arg);
 	return NULL;
 }
 
@@ -130,6 +137,7 @@ int	main (int argc, char **argv)
 	philo = malloc(info.num_philos * sizeof(t_philo));
 	threads = malloc(info.num_philos * sizeof(pthread_t));
 	info.start = get_useconds();
+	info.forks = malloc(info.num_philos * sizeof(pthread_mutex_t));
 	init_philo(&info, philo);
 	for (size_t i = 0; i < info.num_philos; i++)
 	{
@@ -141,5 +149,5 @@ int	main (int argc, char **argv)
 		pthread_join(threads[i], NULL);
 	}
 	pthread_mutex_destroy(&mutex);
-	return 0;
+	return (0);
 }
