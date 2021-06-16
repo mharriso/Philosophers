@@ -18,7 +18,7 @@ typedef struct s_info
 	int				time_to_die;
 	int				time_to_eat;
 	int				time_to_sleep;
-	int				num_dinners;
+	int				must_eat;
 	int				end;
 	int				finished_philos;
 	int				*fork_status;
@@ -32,7 +32,7 @@ typedef	struct s_philo
 	int		r_fork;
 	int		l_fork;
 	int		num;
-	int		dinners;
+	int		num_eat;
 }	t_philo;
 
 size_t	get_useconds(void)
@@ -79,14 +79,14 @@ int	save_args(int argc, char **argv, t_info *info)
 	info->time_to_die = ft_atoi(argv[2]);
 	info->time_to_eat = ft_atoi(argv[3]);
 	info->time_to_sleep = ft_atoi(argv[4]);
-	info->num_dinners = -1;
+	info->must_eat = -1;
 	if (info->num_philos < 1 || info->time_to_die < 1 || \
 		info->time_to_eat < 1 || info->time_to_sleep < 1)
 		return (0);
 	if (argc == 6)
 	{
-		info->num_dinners = ft_atoi(argv[5]);
-		if (info->num_dinners < 2)
+		info->must_eat = ft_atoi(argv[5]);
+		if (info->must_eat < 2)
 			return (0);
 	}
 	return (1);
@@ -100,21 +100,51 @@ void	print_philo_status(t_philo *philo, char *status)
 
 void	philo_eat(t_philo *philo)
 {
-	if(philo->info->fork_status[philo->l_fork] == FREE)
+	while (1)
 	{
-		pthread_mutex_lock(&philo->info->forks[philo->l_fork]);
-		pthread_mutex_lock(&philo->info->forks[philo->r_fork]);
-		print_philo_status(philo, "has taken a fork");
-		print_philo_status(philo, "has taken a fork");
-		usleep((philo->info->time_to_eat * 1000));
+		if (philo->info->fork_status[philo->r_fork] == FREE )
+		{
+			pthread_mutex_lock(&philo->info->forks[philo->r_fork]);
+			pthread_mutex_lock(&philo->info->forks[philo->l_fork]);
+			philo->info->fork_status[philo->r_fork] = LOCK;
+			philo->info->fork_status[philo->l_fork] = LOCK;
+			print_philo_status(philo, "has taken a fork");
+			print_philo_status(philo, "has taken a fork");
+			print_philo_status(philo, "is eating");
+			if (++philo->num_eat == philo->info->must_eat)
+				if(++philo->info->finished_philos == philo->info->num_philos)
+					philo->info->end = 1;
+			usleep((philo->info->time_to_eat * 1000));
+			philo->info->fork_status[philo->r_fork] = FREE;
+			philo->info->fork_status[philo->l_fork] = FREE;
+			pthread_mutex_unlock(&philo->info->forks[philo->r_fork]);
+			pthread_mutex_unlock(&philo->info->forks[philo->l_fork]);
+			break ;
+		}
+		else
+			usleep(1);
 	}
+}
+
+void	philo_sleep(t_philo *philo)
+{
+	print_philo_status(philo, "is sleeping");
+	usleep((philo->info->time_to_sleep * 1000));
+}
+
+void	philo_think(t_philo *philo)
+{
+	print_philo_status(philo, "is thinking");
 }
 
 void	*philo_life(void *arg)
 {
-	philo_eat((t_philo *)arg);
-	philo_sleep((t_philo *)arg);
-	philo_thinking((t_philo *)arg);
+	while (1)
+	{
+		philo_eat((t_philo *)arg);
+		philo_sleep((t_philo *)arg);
+		philo_think((t_philo *)arg);
+	}
 	return NULL;
 }
 
@@ -132,18 +162,28 @@ void	init_philo(t_info *info, t_philo *philo)
 			philo[i].r_fork = info->num_philos - 1;
 		else
 			philo[i].r_fork = i - 1;
-		philo[i].dinners = 0;
+		philo[i].num_eat = 0;
 		i++;
 	}
 }
+int	init_mutex_forks(t_info *info)
+{
+	int	i;
 
+	i = 0;
+	while (i < info->num_philos)
+	{
+		pthread_mutex_init(&info->forks[i], NULL);
+		i++;
+	}
+	return (0);
+}
 int	main (int argc, char **argv)
 {
 	t_philo		*philo;
 	t_info		info;
 	pthread_t	*threads;
 
-	pthread_mutex_init(&mutex, NULL);
 	if(!save_args(argc, argv, &info))
 	{
 		write(1, "Invalid args\n", 14);
@@ -153,8 +193,12 @@ int	main (int argc, char **argv)
 	threads = malloc(info.num_philos * sizeof(pthread_t));
 	info.forks = malloc(info.num_philos * sizeof(pthread_mutex_t));
 	info.fork_status = malloc(info.num_philos * sizeof(int));
+	info.finished_philos = 0;
+	info.end = 0;
 	memset(info.fork_status, FREE, sizeof(int) * info.num_philos);
+	init_mutex_forks(&info);
 	info.start = get_useconds();
+	printf("eat = %d\nsleep = %d\nmust = %d\n", info.time_to_eat, info.time_to_sleep, info.must_eat);
 	init_philo(&info, philo);
 	for (size_t i = 0; i < info.num_philos; i++)
 	{
@@ -165,6 +209,5 @@ int	main (int argc, char **argv)
 	{
 		pthread_join(threads[i], NULL);
 	}
-	pthread_mutex_destroy(&mutex);
 	return (0);
 }
