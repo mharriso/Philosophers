@@ -33,6 +33,7 @@ typedef	struct s_philo
 	int		l_fork;
 	int		num;
 	int		num_eat;
+	size_t	last_eat;
 }	t_philo;
 
 size_t	get_useconds(void)
@@ -114,6 +115,7 @@ void	philo_eat(t_philo *philo)
 			if (++philo->num_eat == philo->info->must_eat)
 				if(++philo->info->finished_philos == philo->info->num_philos)
 					philo->info->end = 1;
+			philo->last_eat = get_useconds();
 			usleep((philo->info->time_to_eat * 1000));
 			philo->info->fork_status[philo->r_fork] = FREE;
 			philo->info->fork_status[philo->l_fork] = FREE;
