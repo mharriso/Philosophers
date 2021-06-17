@@ -44,6 +44,15 @@ size_t	get_useconds(void)
 	return (time.tv_sec * 1000000 + time.tv_usec);
 }
 
+void	ft_usleep(useconds_t time)
+{
+	size_t t;
+
+	t = get_useconds();
+	while (get_useconds() - t < time)
+		usleep(1);
+}
+
 int	ft_atoi(char *str)
 {
 	long		number;
@@ -72,6 +81,8 @@ int	ft_atoi(char *str)
 	return (sign * number);
 }
 
+
+
 int	save_args(int argc, char **argv, t_info *info)
 {
 	if (argc != 5 && argc != 6)
@@ -95,7 +106,7 @@ int	save_args(int argc, char **argv, t_info *info)
 
 void	print_philo_status(t_philo *philo, char *status)
 {
-	printf("%ld %d %s\n", (get_useconds() - philo->info->start) / 1000, philo->num, status);
+	printf("%zu %d %s\n", (get_useconds() - philo->info->start) / 1000, philo->num, status);
 }
 
 
@@ -106,13 +117,15 @@ void	philo_eat(t_philo *philo)
 		if (philo->info->fork_status[philo->r_fork] == FREE )
 		{
 			pthread_mutex_lock(&philo->info->forks[philo->r_fork]);
-			pthread_mutex_lock(&philo->info->forks[philo->l_fork]);
 			philo->info->fork_status[philo->r_fork] = LOCK;
+			print_philo_status(philo, "has taken a fork");
+			pthread_mutex_lock(&philo->info->forks[philo->l_fork]);
 			philo->info->fork_status[philo->l_fork] = LOCK;
 			print_philo_status(philo, "has taken a fork");
-			print_philo_status(philo, "has taken a fork");
+			if(philo->info->end)
+				break ;
 			print_philo_status(philo, "is eating");
-			if (++philo->num_eat == philo->info->must_eat)
+			if (philo->info->must_eat > 0 && ++philo->num_eat == philo->info->must_eat)
 				if(++philo->info->finished_philos == philo->info->num_philos)
 					philo->info->end = 1;
 			philo->last_eat = get_useconds();
@@ -130,12 +143,16 @@ void	philo_eat(t_philo *philo)
 
 void	philo_sleep(t_philo *philo)
 {
+	if(philo->info->end)
+		return ;
 	print_philo_status(philo, "is sleeping");
 	usleep((philo->info->time_to_sleep * 1000));
 }
 
 void	philo_think(t_philo *philo)
 {
+	if(philo->info->end)
+		return ;
 	print_philo_status(philo, "is thinking");
 }
 
@@ -164,6 +181,7 @@ void	init_philo(t_info *info, t_philo *philo)
 			philo[i].r_fork = info->num_philos - 1;
 		else
 			philo[i].r_fork = i - 1;
+		philo[i].last_eat = info->start;
 		philo[i].num_eat = 0;
 		i++;
 	}
@@ -180,36 +198,74 @@ int	init_mutex_forks(t_info *info)
 	}
 	return (0);
 }
+
+int destroy_mutex_forks(t_info *info)
+{
+	int	i;
+
+	i = 0;
+	while (i < info->num_philos)
+	{
+		pthread_mutex_destroy(&info->forks[i]);
+		i++;
+	}
+	return (0);
+}
+
+void	check_philo(t_philo *philo)
+{
+
+	if (get_useconds() - philo->last_eat > (size_t)philo->info->time_to_die * 1000)
+	{
+		philo->info->end = 1;
+		print_philo_status(philo, "is died");
+	}
+
+}
+
 int	main (int argc, char **argv)
 {
 	t_philo		*philo;
-	t_info		info;
+	t_info		*info;
 	pthread_t	*threads;
 
-	if(!save_args(argc, argv, &info))
+	pthread_mutex_init(&mutex, NULL);
+	info = malloc(sizeof(t_info));
+	if(!save_args(argc, argv, info))
 	{
 		write(1, "Invalid args\n", 14);
 		return (1);
 	}
-	philo = malloc(info.num_philos * sizeof(t_philo));
-	threads = malloc(info.num_philos * sizeof(pthread_t));
-	info.forks = malloc(info.num_philos * sizeof(pthread_mutex_t));
-	info.fork_status = malloc(info.num_philos * sizeof(int));
-	info.finished_philos = 0;
-	info.end = 0;
-	memset(info.fork_status, FREE, sizeof(int) * info.num_philos);
-	init_mutex_forks(&info);
-	info.start = get_useconds();
-	printf("eat = %d\nsleep = %d\nmust = %d\n", info.time_to_eat, info.time_to_sleep, info.must_eat);
-	init_philo(&info, philo);
-	for (size_t i = 0; i < info.num_philos; i++)
+	philo = malloc(info->num_philos * sizeof(t_philo));
+	threads = malloc(info->num_philos * sizeof(pthread_t));
+	info->forks = malloc(info->num_philos * sizeof(pthread_mutex_t));
+	info->fork_status = malloc(info->num_philos * sizeof(int));
+	info->finished_philos = 0;
+	info->end = 0;
+	memset(info->fork_status, FREE, sizeof(int) * info->num_philos);
+	init_mutex_forks(info);
+	info->start = get_useconds();
+	//printf("eat = %d\nsleep = %d\nmust = %d\nphilos = %d\n", info->time_to_eat, info->time_to_sleep, info->must_eat, info->num_philos);
+	init_philo(info, philo);
+	for (size_t k = 0; k < info->num_philos; k++)
 	{
-		pthread_create(&threads[i], NULL, philo_life, &philo[i]);
-		usleep(1);
+		pthread_create(&threads[k], NULL, philo_life, &philo[k]);
+		usleep(50);
 	}
-	for (size_t i = 0; i < info.num_philos; i++)
+	int i;
+	while(!info->end)
 	{
-		pthread_join(threads[i], NULL);
+		i = 0;
+		while(i < info->num_philos)
+		{
+			check_philo(&philo[i]);
+			i++;
+		}
 	}
+	for (size_t j = 0; j < info->num_philos; j++)
+	{
+		pthread_detach(threads[j]);
+	}
+	destroy_mutex_forks(info);
 	return (0);
 }
