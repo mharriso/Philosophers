@@ -11,6 +11,8 @@
 #define LOCK 1
 
 pthread_mutex_t	mtx_end;
+pthread_mutex_t	mtx_last_eat;
+
 
 typedef struct s_info
 {
@@ -99,6 +101,8 @@ int	save_args(int argc, char **argv, t_info *info)
 
 void	print_philo_status(t_philo *philo, char *status)
 {
+	pthread_mutex_lock(&mtx_end);
+	pthread_mutex_unlock(&mtx_end);
 	printf("%zu %d %s\n", (get_useconds() - philo->info->start) / 1000, philo->num, status);
 }
 
@@ -116,8 +120,6 @@ void	philo_eat(t_philo *philo)
 			philo->info->fork_status[philo->l_fork] = LOCK;
 			print_philo_status(philo, "has taken a fork");
 			philo->last_eat = get_useconds();
-			pthread_mutex_lock(&mtx_end);
-			pthread_mutex_unlock(&mtx_end);
 			print_philo_status(philo, "is eating");
 			if (philo->info->must_eat > 0 && ++philo->num_eat == philo->info->must_eat)
 				if (++philo->info->finished_philos == philo->info->num_philos)
@@ -133,23 +135,19 @@ void	philo_eat(t_philo *philo)
 			break ;
 		}
 		else
-			usleep(100);
+			usleep(500);
 	}
 
 }
 
 void	philo_sleep(t_philo *philo)
 {
-	if(philo->info->end)
-		return ;
 	print_philo_status(philo, "is sleeping");
 	ft_usleep((philo->info->time_to_sleep * 1000));
 }
 
 void	philo_think(t_philo *philo)
 {
-	if(philo->info->end)
-		return ;
 	print_philo_status(philo, "is thinking");
 }
 
@@ -211,12 +209,11 @@ int	destroy_mutex_forks(t_info *info)
 
 void	check_philo(t_philo *philo)
 {
-
 	if ((get_useconds() - philo->last_eat) / 1000 > (size_t)philo->info->time_to_die)
 	{
 		philo->info->end = 1;
-		pthread_mutex_lock(&mtx_end);
 		print_philo_status(philo, "died");
+		pthread_mutex_lock(&mtx_end);
 	}
 
 }
@@ -228,6 +225,7 @@ int	main(int argc, char **argv)
 	pthread_t	*threads;
 
 	pthread_mutex_init(&mtx_end, NULL);
+	pthread_mutex_init(&mtx_last_eat, NULL);
 	info = malloc(sizeof(t_info));
 	if(!save_args(argc, argv, info))
 	{
@@ -248,16 +246,17 @@ int	main(int argc, char **argv)
 	for (int k = 0; k < info->num_philos; k++)
 	{
 		pthread_create(&threads[k], NULL, philo_life, &philo[k]);
-		ft_usleep(50);
+		ft_usleep(100);
 	}
 	int i;
 	while(!info->end)
 	{
-		usleep(1000);
+		usleep(3000);
 		i = 0;
 		while(i < info->num_philos)
 		{
 			check_philo(&philo[i]);
+			if(info)
 			i++;
 		}
 	}
