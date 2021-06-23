@@ -164,10 +164,17 @@ void	*philo_life(void *arg)
 	return (NULL);
 }
 
-int	init_philo(t_info *info, t_philo *philo)
+t_philo	*init_philo(t_info *info)
 {
+	t_philo		*philo;
 	int		i;
 
+	philo = malloc(info->num_philos * sizeof(t_philo));
+	if (!philo)
+	{
+		write(2, "Malloc error\n", 14);
+		return (NULL);
+	}
 	i = 0;
 	while (i < info->num_philos)
 	{
@@ -182,7 +189,7 @@ int	init_philo(t_info *info, t_philo *philo)
 		philo[i].num_eat = 0;
 		i++;
 	}
-	return (0);
+	return (philo);
 }
 
 int	init_mutex_forks(t_info *info)
@@ -313,12 +320,11 @@ int	main(int argc, char **argv)
 	pthread_t	*threads;
 
 	info = malloc(sizeof(t_info));
-	philo = malloc(info->num_philos * sizeof(t_philo));
-	threads = malloc(info->num_philos * sizeof(pthread_t));
-	if (!info || !philo || !save_args(argc, argv, info) || \
-	init_info(info) || init_philo(info, philo) || \
-	start_philos(threads, info, philo))
+	if (!info || !save_args(argc, argv, info) || init_info(info))
 		return (1);
+	philo = init_philo(info);
+	threads = malloc(info->num_philos * sizeof(pthread_t));
+	start_philos(threads, info, philo);
 	check_philos_death(philo, info);
 	kill_philos(threads, info, philo);
 	return (0);
