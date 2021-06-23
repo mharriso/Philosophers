@@ -138,7 +138,7 @@ void	philo_eat(t_philo *philo)
 			break ;
 		}
 		else
-			ft_usleep(500);
+			usleep(500);
 	}
 }
 
@@ -206,6 +206,7 @@ int	init_info(t_info *info)
 {
 	info->forks = malloc(info->num_philos * sizeof(pthread_mutex_t));
 	info->fork_status = malloc(info->num_philos * sizeof(int));
+	memset(info->fork_status, FREE, sizeof(int) * info->num_philos);
 	if (!info->forks || ! info->fork_status)
 	{
 		write(2, "Malloc error\n", 14);
@@ -213,7 +214,6 @@ int	init_info(t_info *info)
 	}
 	info->finished_philos = 0;
 	info->end = 0;
-	memset(info->fork_status, FREE, sizeof(int) * info->num_philos);
 	if (init_mutex_forks(info) || pthread_mutex_init(&info->mtx_end, NULL))
 	{
 		write(2, "Init mutex error\n", 18);
@@ -253,8 +253,8 @@ void	check_philos_death(t_philo *philo, t_info *info)
 
 	while (!info->end)
 	{
-		i = 0;
 		ft_usleep(3000);
+		i = 0;
 		while (!info->end && i < info->num_philos)
 		{
 			check_philo(&philo[i]);
@@ -300,7 +300,7 @@ int	start_philos(pthread_t *threads, t_info *info, t_philo *philo)
 			write(2, "Pthread create error\n", 22);
 			return (1);
 		}
-		ft_usleep(100);
+		usleep(1000);
 		i++;
 	}
 	return (0);
@@ -312,14 +312,12 @@ int	main(int argc, char **argv)
 	t_info		*info;
 	pthread_t	*threads;
 
-	threads = NULL;
 	info = malloc(sizeof(t_info));
 	philo = malloc(info->num_philos * sizeof(t_philo));
 	threads = malloc(info->num_philos * sizeof(pthread_t));
 	if (!info || !philo || !save_args(argc, argv, info) || \
-	init_info(info) || init_philo(info, philo))
-		return (1);
-	if (start_philos(threads, info, philo))
+	init_info(info) || init_philo(info, philo) || \
+	start_philos(threads, info, philo))
 		return (1);
 	check_philos_death(philo, info);
 	kill_philos(threads, info, philo);
