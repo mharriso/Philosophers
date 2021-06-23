@@ -26,6 +26,7 @@ typedef struct s_info
 	int				*fork_status;
 	size_t			start;
 	pthread_mutex_t	*forks;
+	pthread_mutex_t	mtx_end;
 }	t_info;
 
 typedef	struct s_philo
@@ -217,6 +218,26 @@ void	check_philo(t_philo *philo)
 	}
 
 }
+int	init_info(t_info *info)
+{
+	info->forks = malloc(info->num_philos * sizeof(pthread_mutex_t));
+	info->fork_status = malloc(info->num_philos * sizeof(int));
+	if (!info->forks || ! info->fork_status)
+	{
+		write(2, "Malloc error\n", 14);
+		return (1);
+	}
+	info->finished_philos = 0;
+	info->end = 0;
+	memset(info->fork_status, FREE, sizeof(int) * info->num_philos);
+	if (init_mutex_forks(info) || pthread_mutex_init(&info->mtx_end, NULL))
+	{
+		write(2, "Init mutex error\n", 18);
+		return (1);
+	}
+	info->start = get_useconds();
+	return (0);
+}
 
 int	main(int argc, char **argv)
 {
@@ -224,8 +245,6 @@ int	main(int argc, char **argv)
 	t_info		*info;
 	pthread_t	*threads;
 
-	pthread_mutex_init(&mtx_end, NULL);
-	pthread_mutex_init(&mtx_last_eat, NULL);
 	info = malloc(sizeof(t_info));
 	if(!save_args(argc, argv, info))
 	{
@@ -239,8 +258,6 @@ int	main(int argc, char **argv)
 	info->finished_philos = 0;
 	info->end = 0;
 	memset(info->fork_status, FREE, sizeof(int) * info->num_philos);
-	init_mutex_forks(info);
-	info->start = get_useconds();
 	//printf("eat = %d\nsleep = %d\nmust = %d\nphilos = %d\n", info->time_to_eat, info->time_to_sleep, info->must_eat, info->num_philos);
 	init_philo(info, philo);
 	for (int k = 0; k < info->num_philos; k++)
