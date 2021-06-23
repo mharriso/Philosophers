@@ -75,26 +75,22 @@ int	ft_atoi(char *str)
 int	save_args(int argc, char **argv, t_info *info)
 {
 	if (argc != 5 && argc != 6)
+	{
+		write(2, "Invalid args\n", 14);
 		return (0);
+	}
 	info->num_philos = ft_atoi(argv[1]);
 	info->time_to_die = ft_atoi(argv[2]);
 	info->time_to_eat = ft_atoi(argv[3]);
 	info->time_to_sleep = ft_atoi(argv[4]);
 	info->must_eat = -1;
-	if (info->num_philos < 1 || info->time_to_die < 1 || \
-		info->time_to_eat < 1 || info->time_to_sleep < 1)
+	if (argc == 6)
+		info->must_eat = ft_atoi(argv[5]);
+	if (info->num_philos < 1 || info->time_to_die < 1 || info->time_to_eat < 1 \
+		|| info->time_to_sleep < 1 || (argc == 6 && info->must_eat < 2))
 	{
 		write(2, "Invalid args\n", 14);
 		return (0);
-	}
-	if (argc == 6)
-	{
-		info->must_eat = ft_atoi(argv[5]);
-		if (info->must_eat < 2)
-		{
-			write(2, "Invalid args\n", 14);
-			return (0);
-		}
 	}
 	return (1);
 }
@@ -125,7 +121,6 @@ void	philo_eat(t_philo *philo)
 	{
 		if (philo->info->fork_status[philo->r_fork] == FREE)
 		{
-			printf("ok\n");
 			pthread_mutex_lock(&philo->info->forks[philo->r_fork]);
 			philo->info->fork_status[philo->r_fork] = LOCK;
 			print_philo_status(philo, "has taken a fork");
@@ -163,7 +158,6 @@ void	*philo_life(void *arg)
 	while (1)
 	{
 		philo_eat((t_philo *)arg);
-		printf("EAT OK\n");
 		philo_sleep((t_philo *)arg);
 		philo_think((t_philo *)arg);
 	}
@@ -174,12 +168,6 @@ int	init_philo(t_info *info, t_philo *philo)
 {
 	int		i;
 
-	philo = malloc(info->num_philos * sizeof(t_philo));
-	if (!philo)
-	{
-		write(2, "Malloc error\n", 14);
-		return (1);
-	}
 	i = 0;
 	while (i < info->num_philos)
 	{
@@ -299,7 +287,6 @@ int	start_philos(pthread_t *threads, t_info *info, t_philo *philo)
 {
 	int	i;
 
-	threads = malloc(info->num_philos * sizeof(pthread_t));
 	if (!threads)
 	{
 		write(2, "Malloc error\n", 14);
@@ -325,13 +312,15 @@ int	main(int argc, char **argv)
 	t_info		*info;
 	pthread_t	*threads;
 
+	threads = NULL;
 	info = malloc(sizeof(t_info));
-	if (!info || !save_args(argc, argv, info) || \
+	philo = malloc(info->num_philos * sizeof(t_philo));
+	threads = malloc(info->num_philos * sizeof(pthread_t));
+	if (!info || !philo || !save_args(argc, argv, info) || \
 	init_info(info) || init_philo(info, philo))
 		return (1);
 	if (start_philos(threads, info, philo))
 		return (1);
-	printf("OK\n");
 	check_philos_death(philo, info);
 	kill_philos(threads, info, philo);
 	return (0);
