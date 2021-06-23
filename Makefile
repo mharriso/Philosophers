@@ -2,21 +2,19 @@ NAME	=	philo
 SRC		=	src
 INC		=	inc
 HEADER	=	philo.h
-
-CFILES	=	main.c \
-			philo.c
-
+CFILES	=	philo.c
 SOURCES	=	$(addprefix $(SRC)/, $(CFILES))
 HFILES	=	$(addprefix $(INC)/, $(HEADER))
-
 FLAGS	= -Wall -Wextra -Werror
-
 OBJECTS	= ${SOURCES:.c=.o}
 
 all: ${NAME}
 
+$(NAME): ${OBJECTS}
+	gcc -I ${INC} $(OBJECTS) -o $(NAME)
+
 %.o: %.c ${HFILES}
-	gcc ${FLAGS} -I ${INC} ${SOURCES} -o $@
+	gcc ${FLAGS} -I ${INC} -c $< -o $@
 
 clean:
 	rm -f ${OBJECTS}
@@ -28,4 +26,3 @@ norm:
 	norminette src/* inc/*
 
 .PHONY: all clean fclean re
-
