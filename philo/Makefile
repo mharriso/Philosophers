@@ -2,7 +2,11 @@ NAME	=	philo
 SRC		=	src
 INC		=	inc
 HEADER	=	philo.h
-CFILES	=	philo.c
+CFILES	=	main.c \
+			init.c \
+			philo.c \
+			end.c \
+			utils.c
 SOURCES	=	$(addprefix $(SRC)/, $(CFILES))
 HFILES	=	$(addprefix $(INC)/, $(HEADER))
 FLAGS	= -Wall -Wextra -Werror
