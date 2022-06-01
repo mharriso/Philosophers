@@ -6,7 +6,7 @@ Philosophers is a School 42 project.
 [![mharriso's 42 Philosophers Score](https://badge42.vercel.app/api/v2/cl3w02qb8005509mgrqkyukbw/project/2199201)](https://github.com/JaeSeoKim/badge42)
 
 
-<img src="img/philo.png" />
+<img src="img/philo.jpeg" />
 
 The diagram above represents the problem. There are five silent philosophers (P1 – P5) sitting around a circular table, spending their lives eating and thinking.
 
